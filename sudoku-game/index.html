@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sudoku</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, #f7f8ff, #eef7ff);
+      color: #1f2937;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 760px;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0 0 24px;
+      text-align: center;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      opacity: 0.92;
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .board-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      width: min(90vw, 540px);
+      aspect-ratio: 1 / 1;
+      border: 3px solid #111827;
+      background: white;
+    }
+
+    .cell {
+      border: 1px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: white;
+    }
+
+    .cell input {
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      text-align: center;
+      font-size: clamp(1rem, 2.2vw, 1.6rem);
+      font-weight: bold;
+      color: #0f172a;
+      background: transparent;
+    }
+
+    .cell.fixed {
+      background: #f8fafc;
+    }
+
+    .cell.fixed input {
+      color: #111827;
+    }
+
+    .cell.selected {
+      background: #dbeafe;
+    }
+
+    .cell.related {
+      background: #eff6ff;
+    }
+
+    .cell.error {
+      background: #fee2e2;
+    }
+
+    .cell.border-right {
+      border-right: 3px solid #111827;
+    }
+
+    .cell.border-bottom {
+      border-bottom: 3px solid #111827;
+    }
+
+    .panel {
+      margin-top: 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .status {
+      text-align: center;
+      font-weight: 700;
+      min-height: 24px;
+    }
+
+    .legend {
+      text-align: center;
+      color: #4b5563;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .numbers {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 8px;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    .numbers button {
+      padding: 12px 0;
+      border-radius: 10px;
+      background: #2563eb;
+    }
+
+    .numbers button.clear {
+      grid-column: span 9;
+      background: #dc2626;
+    }
+
+    @media (max-width: 560px) {
+      .app {
+        padding: 18px;
+        border-radius: 18px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Sudoku</h1>
+    <p class="subtitle">
+      Prosta gra Sudoku na stronę internetową — idealna na GitHub Pages
+    </p>
+
+    <section class="controls">
+      <button onclick="newGame('easy')">Nowa gra — łatwa</button>
+      <button onclick="newGame('medium')">Nowa gra — średnia</button>
+      <button onclick="newGame('hard')">Nowa gra — trudna</button>
+      <button class="secondary" onclick="checkBoard()">Sprawdź</button>
+      <button class="secondary" onclick="solveBoard()">Pokaż rozwiązanie</button>
+    </section>
+
+    <div class="board-wrap">
+      <div id="board" class="board"></div>
+    </div>
+
+    <section class="panel">
+      <div id="status" class="status">Kliknij poziom trudności, aby zacząć.</div>
+
+      <div class="numbers">
+        <button onclick="fillSelected(1)">1</button>
+        <button onclick="fillSelected(2)">2</button>
+        <button onclick="fillSelected(3)">3</button>
+        <button onclick="fillSelected(4)">4</button>
+        <button onclick="fillSelected(5)">5</button>
+        <button onclick="fillSelected(6)">6</button>
+        <button onclick="fillSelected(7)">7</button>
+        <button onclick="fillSelected(8)">8</button>
+        <button onclick="fillSelected(9)">9</button>
+        <button class="clear" onclick="clearSelected()">Wyczyść zaznaczone pole</button>
+      </div>
+
+      <div class="legend">
+        Zasady: w każdym wierszu, kolumnie i w każdym kwadracie 3×3 liczby 1–9 mogą wystąpić tylko raz.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const boardElement = document.getElementById('board');
+    const statusElement = document.getElementById('status');
+
+    let solution = [];
+    let puzzle = [];
+    let currentBoard = [];
+    let selectedCell = null;
+
+    function basePattern(row, col) {
+      return (row * 3 + Math.floor(row / 3) + col) % 9;
+    }
+
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function generateSolvedBoard() {
+      const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      const rowGroups = shuffle([0, 1, 2]);
+      const colGroups = shuffle([0, 1, 2]);
+
+      const rows = rowGroups.flatMap(group => shuffle([0, 1, 2]).map(r => group * 3 + r));
+      const cols = colGroups.flatMap(group => shuffle([0, 1, 2]).map(c => group * 3 + c));
+
+      return rows.map(r => cols.map(c => nums[basePattern(r, c)]));
+    }
+
+    function copyBoard(board) {
+      return board.map(row => [...row]);
+    }
+
+    function makePuzzleFromSolution(fullBoard, difficulty) {
+      const removals = {
+        easy: 35,
+        medium: 45,
+        hard: 55
+      };
+
+      const board = copyBoard(fullBoard);
+      let toRemove = removals[difficulty] ?? 45;
+
+      while (toRemove > 0) {
+        const row = Math.floor(Math.random() * 9);
+        const col = Math.floor(Math.random() * 9);
+        if (board[row][col] !== 0) {
+          board[row][col] = 0;
+          toRemove--;
+        }
+      }
+
+      return board;
+    }
+
+    function createBoard() {
+      boardElement.innerHTML = '';
+
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          if (col === 2 || col === 5) cell.classList.add('border-right');
+          if (row === 2 || row === 5) cell.classList.add('border-bottom');
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.inputMode = 'numeric';
+          input.maxLength = 1;
+
+          const value = currentBoard[row][col];
+          if (value !== 0) {
+            input.value = value;
+          }
+
+          if (puzzle[row][col] !== 0) {
+            input.readOnly = true;
+            cell.classList.add('fixed');
+          }
+
+          input.addEventListener('focus', () => selectCell(cell));
+          cell.addEventListener('click', () => {
+            selectCell(cell);
+            input.focus();
+          });
+
+          input.addEventListener('input', (event) => {
+            let val = event.target.value.replace(/[^1-9]/g, '');
+            event.target.value = val;
+            currentBoard[row][col] = val ? Number(val) : 0;
+            validateBoard();
+            checkWin();
+          });
+
+          input.addEventListener('keydown', (event) => {
+            if (event.key === 'Backspace' || event.key === 'Delete') {
+              currentBoard[row][col] = 0;
+              setTimeout(() => {
+                validateBoard();
+              }, 0);
+            }
+          });
+
+          cell.appendChild(input);
+          boardElement.appendChild(cell);
+        }
+      }
+
+      validateBoard();
+    }
+
+    function selectCell(cell) {
+      selectedCell = cell;
+      highlightSelection();
+    }
+
+    function highlightSelection() {
+      const allCells = document.querySelectorAll('.cell');
+      allCells.forEach(cell => cell.classList.remove('selected', 'related'));
+
+      if (!selectedCell) return;
+
+      const selectedRow = Number(selectedCell.dataset.row);
+      const selectedCol = Number(selectedCell.dataset.col);
+      const boxRow = Math.floor(selectedRow / 3);
+      const boxCol = Math.floor(selectedCol / 3);
+
+      allCells.forEach(cell => {
+        const row = Number(cell.dataset.row);
+        const col = Number(cell.dataset.col);
+        const currentBoxRow = Math.floor(row / 3);
+        const currentBoxCol = Math.floor(col / 3);
+
+        if (row === selectedRow || col === selectedCol || (currentBoxRow === boxRow && currentBoxCol === boxCol)) {
+          cell.classList.add('related');
+        }
+      });
+
+      selectedCell.classList.remove('related');
+      selectedCell.classList.add('selected');
+    }
+
+    function fillSelected(number) {
+      if (!selectedCell || selectedCell.classList.contains('fixed')) return;
+      const row = Number(selectedCell.dataset.row);
+      const col = Number(selectedCell.dataset.col);
+      const input = selectedCell.querySelector('input');
+      input.value = number;
+      currentBoard[row][col] = number;
+      validateBoard();
+      checkWin();
+    }
+
+    function clearSelected() {
+      if (!selectedCell || selectedCell.classList.contains('fixed')) return;
+      const row = Number(selectedCell.dataset.row);
+      const col = Number(selectedCell.dataset.col);
+      const input = selectedCell.querySelector('input');
+      input.value = '';
+      currentBoard[row][col] = 0;
+      validateBoard();
+    }
+
+    function getConflicts(board) {
+      const conflicts = new Set();
+
+      function mark(r, c) {
+        conflicts.add(`${r}-${c}`);
+      }
+
+      for (let row = 0; row < 9; row++) {
+        const seen = {};
+        for (let col = 0; col < 9; col++) {
+          const value = board[row][col];
+          if (!value) continue;
+          if (seen[value] !== undefined) {
+            mark(row, col);
+            mark(row, seen[value]);
+          } else {
+            seen[value] = col;
+          }
+        }
+      }
+
+      for (let col = 0; col < 9; col++) {
+        const seen = {};
+        for (let row = 0; row < 9; row++) {
+          const value = board[row][col];
+          if (!value) continue;
+          if (seen[value] !== undefined) {
+            mark(row, col);
+            mark(seen[value], col);
+          } else {
+            seen[value] = row;
+          }
+        }
+      }
+
+      for (let boxRow = 0; boxRow < 3; boxRow++) {
+        for (let boxCol = 0; boxCol < 3; boxCol++) {
+          const seen = {};
+          for (let row = boxRow * 3; row < boxRow * 3 + 3; row++) {
+            for (let col = boxCol * 3; col < boxCol * 3 + 3; col++) {
+              const value = board[row][col];
+              if (!value) continue;
+              if (seen[value]) {
+                const [prevRow, prevCol] = seen[value];
+                mark(row, col);
+                mark(prevRow, prevCol);
+              } else {
+                seen[value] = [row, col];
+              }
+            }
+          }
+        }
+      }
+
+      return conflicts;
+    }
+
+    function validateBoard() {
+      const conflicts = getConflicts(currentBoard);
+      document.querySelectorAll('.cell').forEach(cell => {
+        const row = Number(cell.dataset.row);
+        const col = Number(cell.dataset.col);
+        const key = `${row}-${col}`;
+        cell.classList.toggle('error', conflicts.has(key));
+      });
+
+      if (conflicts.size > 0) {
+        statusElement.textContent = 'Są błędy w planszy — sprawdź czerwone pola.';
+      } else {
+        statusElement.textContent = 'Gra trwa. Powodzenia ';
+      }
+
+      highlightSelection();
+    }
+
+    function checkBoard() {
+      const conflicts = getConflicts(currentBoard);
+      const hasEmpty = currentBoard.some(row => row.some(value => value === 0));
+
+      if (conflicts.size > 0) {
+        statusElement.textContent = 'Jeszcze nie — w planszy są błędy.';
+        return;
+      }
+
+      if (hasEmpty) {
+        statusElement.textContent = 'Na razie wygląda dobrze, ale są jeszcze puste pola.';
+        return;
+      }
+
+      if (isSolved()) {
+        statusElement.textContent = 'Brawo! Sudoku rozwiązane poprawnie ✨';
+      }
+    }
+
+    function isSolved() {
+      for (let row = 0; row < 9; row++) {
+        for (let col = 0; col < 9; col++) {
+          if (currentBoard[row][col] !== solution[row][col]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function checkWin() {
+      if (isSolved()) {
+        statusElement.textContent = 'Brawo! Wygrałaś 💚 Sudoku jest ukończone!';
+      }
+    }
+
+    function solveBoard() {
+      currentBoard = copyBoard(solution);
+      createBoard();
+      statusElement.textContent = 'Pokazano rozwiązanie.';
+    }
+
+    function newGame(difficulty = 'medium') {
+      solution = generateSolvedBoard();
+      puzzle = makePuzzleFromSolution(solution, difficulty);
+      currentBoard = copyBoard(puzzle);
+      selectedCell = null;
+      createBoard();
+      const label = difficulty === 'easy' ? 'łatwy' : difficulty === 'hard' ? 'trudny' : 'średni';
+      statusElement.textContent = `Nowa gra uruchomiona — poziom ${label}.`;
+    }
+  </script>
+</body>
+</html>
